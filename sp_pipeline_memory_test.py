@@ -27,9 +27,8 @@ import rfifind
 import show_spplots
 import warnings
 
-from pypulsar.formats import psrfits
-from pypulsar.formats import filterbank
-from pypulsar.formats import spectra
+from sp_pulsar.formats import psrfits
+from sp_pulsar.formats import spectra
 import memory
 
 DEBUG = True
