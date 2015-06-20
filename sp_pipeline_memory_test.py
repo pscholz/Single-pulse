@@ -32,6 +32,15 @@ from pypulsar.formats import spectra
 import memory
 
 DEBUG = True
+
+def warn_to_stdout(message, category, filename, lineno, file=None, line=None):
+    """A function to replace warnings.showwarning so that warnings are
+        printed to STDOUT instead of STDERR.
+        Usage: warnings.showwarning = warn_to_stdout
+    """
+
+    sys.stdout.write(warnings.formatwarning(message,category,filename,lineno))
+
 def print_debug(msg):
     if DEBUG:
         print msg
@@ -141,6 +150,8 @@ def main():
         raise ValueError("A .inf file must be given on the command line! ") 
     if not hasattr(options, 'txtfile'):
         raise ValueError("The groups.txt file must be given on the command line! ") 
+
+    warnings.showwarning = warn_to_stdout
     
     files = get_textfile(options.txtfile)
     print_debug("Begining waterfaller... "+strftime("%Y-%m-%d %H:%M:%S"))
