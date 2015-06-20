@@ -25,6 +25,7 @@ import bary_and_topo
 import psr_utils
 import rfifind
 import show_spplots
+import warnings
 
 from pypulsar.formats import psrfits
 from pypulsar.formats import filterbank
