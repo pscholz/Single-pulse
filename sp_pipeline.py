@@ -25,19 +25,31 @@ import bary_and_topo
 import psr_utils
 import rfifind
 import show_spplots
+import warnings
 
 from sp_pulsar.formats import psrfits
 from sp_pulsar.formats import spectra
 
 DEBUG = True
+
+def warn_to_stdout(message, category, filename, lineno, file=None, line=None):
+    """A function to replace warnings.showwarning so that warnings are
+        printed to STDOUT instead of STDERR.
+        Usage: warnings.showwarning = warn_to_stdout
+    """
+
+    sys.stdout.write(warnings.formatwarning(message,category,filename,lineno))
+
 def print_debug(msg):
     if DEBUG:
         print msg
+
 def get_textfile(txtfile):
     """ Read in the groups.txt file.
     Contains information about the DM, time, box car width, signal to noise, sample number and rank    of groups. 
     """
     return  np.loadtxt(txtfile,dtype = 'str',delimiter='\n')
+
 def group_info(rank, txtfile):
     """
     Extracts out relevant information from the groups.txt file as strings. 
@@ -59,6 +71,7 @@ def group_info(rank, txtfile):
         # Get the parameters as strings containing the max_sigma
         parameters.append(temp_lines[np.array([max_sigma in line for line in temp_lines])])
     return parameters 
+
 def split_parameters(rank, txtfile):
     """
     Splits the string into individual parameters and converts them into floats/int. 
@@ -99,6 +112,7 @@ def maskdata(data, start_bin, nbinsextra, maskfile):
         # Mask data
         data = data.masked(mask, maskval='median-mid80')
     return data
+
 def waterfall_array(start_bin, dmfac, duration, nbins, zerodm, nsub, subdm, dm, integrate_dm, downsamp, scaleindep, width_bins, rawdatafile, binratio, dat):
     """
     Runs the waterfaller. If dedispersing, there will be extra bins added to the 2D plot.
@@ -119,6 +133,7 @@ def waterfall_array(start_bin, dmfac, duration, nbins, zerodm, nsub, subdm, dm, 
     array = array[..., :nbinlim]
     array = (array[::-1]).astype(np.float16)
     return data, array
+
 def main():
     parser = optparse.OptionParser(prog="sp_pipeline..py", \
                         version=" Chitrang Patel (May. 12, 2015)", \
@@ -142,6 +157,8 @@ def main():
         raise ValueError("A .inf file must be given on the command line! ") 
     if not hasattr(options, 'txtfile'):
         raise ValueError("The groups.txt file must be given on the command line! ") 
+
+    warnings.showwarning = warn_to_stdout
     
     files = get_textfile(options.txtfile)
     print_debug("Begining waterfaller... "+strftime("%Y-%m-%d %H:%M:%S"))
