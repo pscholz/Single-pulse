@@ -134,6 +134,9 @@ def main():
     parser.add_option('--mask', dest='maskfile', type='string', \
                         help="Mask file produced by rfifind. (Default: No Mask).", \
                         default=None)
+    parser.add_option('-n', dest='maxnumcands', type='int', \
+                        help="Maximum number of candidates to plot. (Default: 100).", \
+                        default=100)
     options, args = parser.parse_args()
     if not hasattr(options, 'infile'):
         raise ValueError("A .inf file must be given on the command line! ") 
@@ -145,6 +148,7 @@ def main():
     Detrendlen = 50
     if not args[0].endswith("fits"):
         raise ValueError("The first file must be a psrFits file! ") 
+    print_debug('Maximum number of candidates to plot: %i'%options.maxnumcands)
     basename = args[0][:-5]
     filetype = "psrfits"
     inffile = options.infile
@@ -163,6 +167,8 @@ def main():
     print_debug('getting file..')
     rawdatafile = psrfits.PsrfitsFile(args[0])
     bin_shift = np.round(time_shift/rawdatafile.tsamp).astype('int')
+    numcands = 0 # candidate counter. Use this to decide the maximum bumber of candidates to plot.
+    loop_must_break = False # dont break the loop unless num of cands >100.
     for group in [6, 5, 4, 3, 2]:
         rank = group+1
         if files[group] != "Number of rank %i groups: 0 "%rank:
@@ -268,6 +274,13 @@ def main():
                 print_debug("Now plotting...")
                 show_spplots.plot(temp_filename+".spd", args[1:], xwin=False, outfile = basename, tar = None)
                 print_debug("Finished plot %i " %j+strftime("%Y-%m-%d %H:%M:%S"))
+                numcands+= 1
+                print_debug('Finished sp_candidate : %i'%numcands)
+                if numcands >= options.maxnumcands:    # Max number of candidates to plot 100.
+                    loop_must_break = True
+                    break
+            if loop_must_break:
+                break
         print_debug("Finished group %i... "%rank+strftime("%Y-%m-%d %H:%M:%S"))
     print_debug("Finished running waterfaller... "+strftime("%Y-%m-%d %H:%M:%S"))
 
