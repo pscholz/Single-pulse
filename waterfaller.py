@@ -22,7 +22,7 @@ import psr_utils
 import rfifind
 
 from sp_pulsar.formats import psrfits
-from pypulsar.formats import filterbank
+#from pypulsar.formats import filterbank
 from sp_pulsar.formats import spectra
 
 SWEEP_STYLES = ['r-', 'b-', 'g-', 'm-', 'c-']
@@ -90,11 +90,11 @@ def waterfall(start_bin, dmfac, duration, nbins, zerodm, nsub, subdm, dm, integr
     return data, nbinsextra
 def main():
     fn = args[0]
-    if fn.endswith(".fil"):
-        # Filterbank file
-        filetype = "filterbank"
-        rawdatafile = filterbank.filterbank(fn)
-    elif fn.endswith(".fits"):
+    #if fn.endswith(".fil"):
+    #    # Filterbank file
+    #    filetype = "filterbank"
+    #    rawdatafile = filterbank.filterbank(fn)
+    if fn.endswith(".fits"):
         # PSRFITS file
         filetype = "psrfits"
         rawdatafile = psrfits.PsrfitsFile(fn)
