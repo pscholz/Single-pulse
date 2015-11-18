@@ -121,7 +121,7 @@ class Spectra(object):
         
         if subdm is not None:
             # Compute delays
-            ref_delays = psr_utils.delay_from_DM(subdm-self.dm, sub_hifreqs)
+            ref_delays = psr_utils.delay_from_DM(subdm-self.dm, sub_ctrfreqs)
             delays = psr_utils.delay_from_DM(subdm-self.dm, self.freqs)
             rel_delays = delays-ref_delays.repeat(nchan_per_sub) # Relative delay
             rel_bindelays = np.round(rel_delays/self.dt).astype('int')
