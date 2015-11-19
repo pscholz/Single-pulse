@@ -59,7 +59,9 @@ def maskfile(data, start_bin, nbinsextra):
 
         datacopy = copy.deepcopy(data)
     return data
-def waterfall(start_bin, dmfac, duration, nbins, zerodm, nsub, subdm, dm, integrate_dm, downsamp, scaleindep, width_bins, rawdatafile, binratio, data):
+
+def waterfall(start_bin, dmfac, duration, nbins, zerodm, nsub, subdm, dm, \
+              downsamp, scaleindep, width_bins, rawdatafile, data):
     if dm:
         nbinsextra = np.round((duration + dmfac * dm)/rawdatafile.tsamp).astype('int')
     else:
@@ -88,6 +90,7 @@ def waterfall(start_bin, dmfac, duration, nbins, zerodm, nsub, subdm, dm, integr
         data.smooth(width_bins, padval='mean')
 
     return data, nbinsextra
+
 def main():
     fn = args[0]
     #if fn.endswith(".fil"):
@@ -170,7 +173,6 @@ def main():
     fig.canvas.mpl_connect('key_press_event', \
             lambda ev: (ev.key in ('q','Q') and plt.close(fig)))
     plt.show()
-
 
 if __name__=='__main__':
     parser = optparse.OptionParser(prog="waterfaller.py", \
