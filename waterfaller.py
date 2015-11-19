@@ -91,12 +91,16 @@ def waterfall(start_bin, dmfac, duration, nbins, zerodm, nsub, subdm, dm, \
 
     return data, nbinsextra
 
-def main():
-    fn = args[0]
-    #if fn.endswith(".fil"):
-    #    # Filterbank file
-    #    filetype = "filterbank"
-    #    rawdatafile = filterbank.filterbank(fn)
+def make_waterfalled_arrays(fn, start, duration, dm=None, nbins=None, nsub=None,\
+                            subdm=None, zerodm=False, downsamp=1, scaleindep=False,\
+                            width_bins=1):
+    """ Write me a docstring!!!
+    """
+
+    if fn.endswith(".fil"):
+        # Filterbank file
+        filetype = "filterbank"
+        rawdatafile = filterbank.filterbank(fn)
     if fn.endswith(".fits"):
         # PSRFITS file
         filetype = "psrfits"
@@ -107,72 +111,114 @@ def main():
                          "are supported.)")
 
     # Read data
-    start_bin = np.round(options.start/rawdatafile.tsamp).astype('int')
-	#dmfac = 4.15e3 * np.abs(1./rawdatafile.fch1**2 - 1./(rawdatafile.frequencies[-1])**2)
+    start_bin = np.round(start/rawdatafile.tsamp).astype('int')
     dmfac = 4.15e3 * np.abs(1./rawdatafile.frequencies[0]**2 - 1./rawdatafile.frequencies[-1]**2)
-    if options.nbins is None:
-        nbins = np.round(options.duration/rawdatafile.tsamp).astype('int')
-    else:
-        nbins = options.nbins
-    binratio = 50    
-    if options.dm:
-	nbinsextra = np.round((options.duration + dmfac * options.dm)/rawdatafile.tsamp).astype('int')
+
+    if nbins is None:
+        nbins = np.round(duration/rawdatafile.tsamp).astype('int')
+
+    binratio = 50 # what is this?   
+    if dm:
+	nbinsextra = np.round((duration + dmfac * dm)/rawdatafile.tsamp).astype('int')
     else:
         nbinsextra = nbins    
+
     data = rawdatafile.get_spectra(start_bin, nbinsextra)
     data = maskfile(data, start_bin, nbinsextra)
-    data, bins = waterfall(start_bin, dmfac, options.duration, nbins, options.zerodm, options.nsub, options.subdm, options.dm, options.integrate_dm, options.downsamp, options.scaleindep, options.width_bins, rawdatafile, binratio, data)
-    # Ploting it up
+    data, bins = waterfall(start_bin, dmfac, duration, nbins, zerodm, nsub, \
+                           subdm, dm, downsamp, scaleindep, width_bins, \
+                           rawdatafile, data)
+
+    return rawdatafile, data, bins, nbins
+
+def plot_waterfall(rawdatafile, data, bins, nbins, start, integrate_ts=False, \
+                   integrate_spec=False, show_cb=False, cmap_str="gist_yarg",
+                   sweep_dms=[], sweep_posns=[]):
+    """ I want a docstring too!
+    """
+
+    # Set up axes
     fig = plt.figure()
     fig.canvas.set_window_title("Frequency vs. Time")
-    ax = plt.axes((0.15, 0.15, 0.8, 0.60))
+    if integrate_ts:
+        ax_ts = plt.axes((0.15, 0.75, 0.8, 0.2),sharex=ax_im)
+        max_x = 0.6
+    else:
+        max_x = 0.8
+    if integrate_spec:
+        ax_spec = plt.axes((0.75, 0.15, 0.2, 0.6),sharey=ax_im)
+        max_y = 0.6
+    else:
+        max_y = 0.8
+    
+    ax_im = plt.axes((0.15, 0.15, max_x, max_y))
+
+    # Ploting it up
     ragfac = float(nbins)/bins
     dmrange, trange = data.data.shape
     nbinlim = np.int(trange * ragfac)
     print data.dt, rawdatafile.tsamp 
-   #np.save('data',data.data[..., :nbinlim])
-    plt.imshow(data.data[..., :nbinlim], aspect='auto', \
-                cmap=matplotlib.cm.cmap_d[options.cmap], \
+
+    ax_im.imshow(data.data[..., :nbinlim], aspect='auto', \
+                cmap=matplotlib.cm.cmap_d[cmap_str], \
                 interpolation='nearest', origin='upper', \
                 extent=(data.starttime, data.starttime+ nbinlim*data.dt, \
                         data.freqs.min(), data.freqs.max()))
-    if options.show_cb:
-        cb = plt.colorbar()
+    if show_cb:
+        cb = ax_im.colorbar()
         cb.set_label("Scaled signal intensity (arbitrary units)")
 
     #plt.axis('tight')
     # Sweeping it up
-    for ii, sweep_dm in enumerate(options.sweep_dms):
+    for ii, sweep_dm in enumerate(sweep_dms):
         ddm = sweep_dm-data.dm
         delays = psr_utils.delay_from_DM(ddm, data.freqs)
         delays -= delays.min()
         
-        if options.sweep_posns is None:
+        if sweep_posns is None:
             sweep_posn = 0.0
-        elif len(options.sweep_posns) == 1:
-            sweep_posn = options.sweep_posns[0]
+        elif len(sweep_posns) == 1:
+            sweep_posn = sweep_posns[0]
         else:
-            sweep_posn = options.sweep_posns[ii]
+            sweep_posn = sweep_posns[ii]
         sweepstart = data.dt*data.numspectra*sweep_posn+data.starttime
         sty = SWEEP_STYLES[ii%len(SWEEP_STYLES)]
-        plt.plot(delays+sweepstart, data.freqs, sty, lw=4, alpha=0.5)
+        ax_im.plot(delays+sweepstart, data.freqs, sty, lw=4, alpha=0.5)
 
     # Dressing it up
-    plt.xlabel("Time")
-    plt.ylabel("Observing frequency (MHz)")
+    ax_im.set_xlabel("Time")
+    ax_im.set_ylabel("Observing frequency (MHz)")
     plt.suptitle("Frequency vs. Time")
+
     # Plot Time series
-    if options.integrate_dm is not None:
+    if integrate_ts:
         Data = np.array(data.data[..., :nbinlim])
         Dedisp_ts = Data.sum(axis=0)
-        times = (np.arange(data.numspectra)*data.dt + options.start)[..., :nbinlim]
-        ax = plt.axes((0.15, 0.75, 0.8, 0.2))
-        plt.plot(times, Dedisp_ts)
-	plt.setp(ax.get_xticklabels(), visible = False)
-	plt.setp(ax.get_yticklabels(), visible = False)
+        times = (np.arange(data.numspectra)*data.dt + start)[..., :nbinlim]
+        ax_ts.plot(times, Dedisp_ts)
+	plt.setp(ax_ts.get_xticklabels(), visible = False)
+	plt.setp(ax_ts.get_yticklabels(), visible = False)
+
     fig.canvas.mpl_connect('key_press_event', \
             lambda ev: (ev.key in ('q','Q') and plt.close(fig)))
+
     plt.show()
+
+def main():
+    fn = args[0]
+
+    rawdatafile, data, bins, nbins = make_waterfalled_arrays(fn, options.start, \
+                            options.duration, dm=options.dm,\
+                            nbins=options.nbins, nsub=options.nsub,\
+                            subdm=options.subdm, zerodm=options.zerodm, \
+                            downsamp=options.downsamp, \
+                            scaleindep=options.scaleindep, \
+                            width_bins=options.width_bins)
+
+    plot_waterfall(rawdatafile, data, bins, nbins, options.start, integrate_ts=False, \
+                   integrate_spec=False, show_cb=options.show_cb, 
+                   cmap_str=options.cmap, sweep_dms=options.sweep_dms, 
+                   sweep_posns=options.sweep_posns)
 
 if __name__=='__main__':
     parser = optparse.OptionParser(prog="waterfaller.py", \
