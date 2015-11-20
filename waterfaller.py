@@ -127,18 +127,16 @@ def plot_waterfall(rawdatafile, data, bins, nbins, start, integrate_ts=False, \
     # Set up axes
     fig = plt.figure()
     fig.canvas.set_window_title("Frequency vs. Time")
+
+    im_width = 0.6 if integrate_spec else 0.8
+    im_height = 0.6 if integrate_ts else 0.8
+
+    ax_im = plt.axes((0.15, 0.15, im_width, im_height))
     if integrate_ts:
-        ax_ts = plt.axes((0.15, 0.75, 0.8, 0.2),sharex=ax_im)
-        max_x = 0.6
-    else:
-        max_x = 0.8
+        ax_ts = plt.axes((0.15, 0.75, im_width, 0.2),sharex=ax_im)
+
     if integrate_spec:
-        ax_spec = plt.axes((0.75, 0.15, 0.2, 0.6),sharey=ax_im)
-        max_y = 0.6
-    else:
-        max_y = 0.8
-    
-    ax_im = plt.axes((0.15, 0.15, max_x, max_y))
+        ax_spec = plt.axes((0.75, 0.15, 0.2, im_height),sharey=ax_im)
 
     # Ploting it up
     ragfac = float(nbins)/bins
@@ -173,6 +171,7 @@ def plot_waterfall(rawdatafile, data, bins, nbins, start, integrate_ts=False, \
         ax_im.plot(delays+sweepstart, data.freqs, sty, lw=4, alpha=0.5)
 
     # Dressing it up
+    ax_im.xaxis.get_major_formatter().set_useOffset(False)
     ax_im.set_xlabel("Time")
     ax_im.set_ylabel("Observing frequency (MHz)")
     plt.suptitle("Frequency vs. Time")
@@ -182,9 +181,27 @@ def plot_waterfall(rawdatafile, data, bins, nbins, start, integrate_ts=False, \
         Data = np.array(data.data[..., :nbinlim])
         Dedisp_ts = Data.sum(axis=0)
         times = (np.arange(data.numspectra)*data.dt + start)[..., :nbinlim]
-        ax_ts.plot(times, Dedisp_ts)
+        ax_ts.plot(times, Dedisp_ts,"k")
+        ax_ts.set_xlim([times.min(),times.max()])
 	plt.setp(ax_ts.get_xticklabels(), visible = False)
 	plt.setp(ax_ts.get_yticklabels(), visible = False)
+
+    # Plot Spectrum                                                             
+    if integrate_spec:                                                         
+        window_width = 50 # bins
+        spectrum_window = window_width*rawdatafile.tsamp
+        burst_bin = nbinlim/2
+        on_spec = np.array(data.data[..., burst_bin-window_width:burst_bin+window_width])
+        Dedisp_spec = on_spec.sum(axis=1)[::-1]                                 
+                                                                                
+        freqs = np.linspace(data.freqs.min(), data.freqs.max(), len(Dedisp_spec))           
+        ax_spec.plot(Dedisp_spec,freqs,"k")                                       
+        plt.setp(ax_spec.get_xticklabels(), visible = False)                   
+        plt.setp(ax_spec.get_yticklabels(), visible = False)                    
+        ax_spec.set_ylim([data.freqs.min(),data.freqs.max()])                   
+        if integrate_ts:
+            ax_ts.axvline(times[burst_bin]-spectrum_window,ls="--",c="grey")                  
+            ax_ts.axvline(times[burst_bin]+spectrum_window,ls="--",c="grey")                  
 
     fig.canvas.mpl_connect('key_press_event', \
             lambda ev: (ev.key in ('q','Q') and plt.close(fig)))
@@ -215,8 +232,8 @@ def main():
                             scaleindep=options.scaleindep, \
                             width_bins=options.width_bins)
 
-    plot_waterfall(rawdatafile, data, bins, nbins, options.start, integrate_ts=False, \
-                   integrate_spec=False, show_cb=options.show_cb, 
+    plot_waterfall(rawdatafile, data, bins, nbins, options.start, integrate_ts=options.integrate_ts, \
+                   integrate_spec=options.integrate_spec, show_cb=options.show_cb, 
                    cmap_str=options.cmap, sweep_dms=options.sweep_dms, 
                    sweep_posns=options.sweep_posns)
 
@@ -240,9 +257,12 @@ if __name__=='__main__':
     parser.add_option('-d', '--dm', dest='dm', type='float', \
                         help="DM to use when dedispersing data for plot. " \
                                 "(Default: 0 pc/cm^3)", default=0.0)
-    parser.add_option('--integratedm', dest='integrate_dm', type='float', \
-                        help="DM to use when plotting the dedispersed time series. " \
+    parser.add_option('--show-ts', dest='integrate_ts', action='store_true', \
+                        help="Plot the time series. " \
                                 "(Default: Do not show the time series", default=None)
+    parser.add_option('--show-spec', dest='integrate_spec', action='store_true', \
+                        help="Plot the spectrum. " \
+                                "(Default: Do not show the spectrum", default=None)
     parser.add_option('-T', '--start-time', dest='start', type='float', \
                         help="Time into observation (in seconds) at which " \
                                 "to start plot.")
