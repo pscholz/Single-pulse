@@ -91,24 +91,11 @@ def waterfall(start_bin, dmfac, duration, nbins, zerodm, nsub, subdm, dm, \
 
     return data, nbinsextra
 
-def make_waterfalled_arrays(fn, start, duration, dm=None, nbins=None, nsub=None,\
+def make_waterfalled_arrays(rawdatafile, start, duration, dm=None, nbins=None, nsub=None,\
                             subdm=None, zerodm=False, downsamp=1, scaleindep=False,\
                             width_bins=1):
     """ Write me a docstring!!!
     """
-
-    if fn.endswith(".fil"):
-        # Filterbank file
-        filetype = "filterbank"
-        rawdatafile = filterbank.filterbank(fn)
-    if fn.endswith(".fits"):
-        # PSRFITS file
-        filetype = "psrfits"
-        rawdatafile = psrfits.PsrfitsFile(fn)
-    else:
-        raise ValueError("Cannot recognize data file type from "
-                         "extension. (Only '.fits' and '.fil' "
-                         "are supported.)")
 
     # Read data
     start_bin = np.round(start/rawdatafile.tsamp).astype('int')
@@ -129,7 +116,7 @@ def make_waterfalled_arrays(fn, start, duration, dm=None, nbins=None, nsub=None,
                            subdm, dm, downsamp, scaleindep, width_bins, \
                            rawdatafile, data)
 
-    return rawdatafile, data, bins, nbins
+    return data, bins, nbins
 
 def plot_waterfall(rawdatafile, data, bins, nbins, start, integrate_ts=False, \
                    integrate_spec=False, show_cb=False, cmap_str="gist_yarg",
@@ -207,7 +194,20 @@ def plot_waterfall(rawdatafile, data, bins, nbins, start, integrate_ts=False, \
 def main():
     fn = args[0]
 
-    rawdatafile, data, bins, nbins = make_waterfalled_arrays(fn, options.start, \
+    if fn.endswith(".fil"):
+        # Filterbank file
+        filetype = "filterbank"
+        rawdatafile = filterbank.filterbank(fn)
+    if fn.endswith(".fits"):
+        # PSRFITS file
+        filetype = "psrfits"
+        rawdatafile = psrfits.PsrfitsFile(fn)
+    else:
+        raise ValueError("Cannot recognize data file type from "
+                         "extension. (Only '.fits' and '.fil' "
+                         "are supported.)")
+
+    data, bins, nbins = make_waterfalled_arrays(rawdatafile, options.start, \
                             options.duration, dm=options.dm,\
                             nbins=options.nbins, nsub=options.nsub,\
                             subdm=options.subdm, zerodm=options.zerodm, \
