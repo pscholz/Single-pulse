@@ -50,18 +50,17 @@ def get_mask(rfimask, startsamp, N):
         mask[blocknums==blocknum] = blockmask
     return mask.T
         
-def maskfile(data, start_bin, nbinsextra):
-    if options.maskfile is not None:
-        rfimask = rfifind.rfifind(options.maskfile) 
-        mask = get_mask(rfimask, start_bin, nbinsextra)
-        # Mask data
-        data = data.masked(mask, maskval='median-mid80')
+def maskfile(maskfn, data, start_bin, nbinsextra):
+    rfimask = rfifind.rfifind(maskfn) 
+    mask = get_mask(rfimask, start_bin, nbinsextra)
+    # Mask data
+    data = data.masked(mask, maskval='median-mid80')
 
-        datacopy = copy.deepcopy(data)
+    datacopy = copy.deepcopy(data)
     return data
 
 def waterfall(start_bin, dmfac, duration, nbins, zerodm, nsub, subdm, dm, \
-              downsamp, scaleindep, width_bins, rawdatafile, data):
+              downsamp, scaleindep, width_bins, rawdatafile, data, maskfn, bandpass_corr=False):
     if dm:
         nbinsextra = np.round((duration + dmfac * dm)/rawdatafile.tsamp).astype('int')
     else:
@@ -70,6 +69,12 @@ def waterfall(start_bin, dmfac, duration, nbins, zerodm, nsub, subdm, dm, \
     # Zerodm filtering
     if (zerodm == True):
         data.data -=  data.data.mean(axis=0)
+
+    # Bandpass correction
+    if (bandpass_corr == True):
+        bandpass = rfifind.rfifind(maskfn).median_bandpass_avg[::-1]
+        bandpass[bandpass == 0] = np.min(bandpass[np.nonzero(bandpass)])
+        data.data /= bandpass[:, None]
     
     # Subband data
     if (nsub is not None) and (subdm is not None):
@@ -93,7 +98,7 @@ def waterfall(start_bin, dmfac, duration, nbins, zerodm, nsub, subdm, dm, \
 
 def make_waterfalled_arrays(rawdatafile, start, duration, dm=None, nbins=None, nsub=None,\
                             subdm=None, zerodm=False, downsamp=1, scaleindep=False,\
-                            width_bins=1):
+                            width_bins=1, maskfn=None, bandpass_corr=False):
     """ Write me a docstring!!!
     """
 
@@ -111,10 +116,11 @@ def make_waterfalled_arrays(rawdatafile, start, duration, dm=None, nbins=None, n
         nbinsextra = nbins    
 
     data = rawdatafile.get_spectra(start_bin, nbinsextra)
-    data = maskfile(data, start_bin, nbinsextra)
+    if maskfn:
+        data = maskfile(maskfn, data, start_bin, nbinsextra)
     data, bins = waterfall(start_bin, dmfac, duration, nbins, zerodm, nsub, \
                            subdm, dm, downsamp, scaleindep, width_bins, \
-                           rawdatafile, data)
+                           rawdatafile, data, maskfn, bandpass_corr=bandpass_corr)
 
     return data, bins, nbins
 
@@ -230,7 +236,8 @@ def main():
                             subdm=options.subdm, zerodm=options.zerodm, \
                             downsamp=options.downsamp, \
                             scaleindep=options.scaleindep, \
-                            width_bins=options.width_bins)
+                            width_bins=options.width_bins, maskfn=options.maskfile,
+                            bandpass_corr=options.bandpass_corr)
 
     plot_waterfall(rawdatafile, data, bins, nbins, options.start, integrate_ts=options.integrate_ts, \
                    integrate_spec=options.integrate_spec, show_cb=options.show_cb, 
@@ -259,10 +266,14 @@ if __name__=='__main__':
                                 "(Default: 0 pc/cm^3)", default=0.0)
     parser.add_option('--show-ts', dest='integrate_ts', action='store_true', \
                         help="Plot the time series. " \
-                                "(Default: Do not show the time series", default=None)
+                                "(Default: Do not show the time series)", default=False)
     parser.add_option('--show-spec', dest='integrate_spec', action='store_true', \
                         help="Plot the spectrum. " \
-                                "(Default: Do not show the spectrum", default=None)
+                                "(Default: Do not show the spectrum)", default=False)
+    parser.add_option('--bandpass', dest='bandpass_corr', action='store_true', \
+                        help="Correct for the bandpass. Requires an rfifind " \
+                                "mask provided by --mask option." \
+                                "(Default: Do not remove bandpass)", default=False)
     parser.add_option('-T', '--start-time', dest='start', type='float', \
                         help="Time into observation (in seconds) at which " \
                                 "to start plot.")
