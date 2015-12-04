@@ -167,9 +167,9 @@ def make_waterfalled_arrays(rawdatafile, start, duration, dm=None, nbins=None, n
 
     return data, nbinsextra, nbins, start
 
-def plot_waterfall(rawdatafile, data, bins, nbins, start, integrate_ts=False, \
-                   integrate_spec=False, show_cb=False, cmap_str="gist_yarg",
-                   sweep_dms=[], sweep_posns=[]):
+def plot_waterfall(rawdatafile, data, start, duration, 
+                   integrate_ts=False, integrate_spec=False, show_cb=False, 
+                   cmap_str="gist_yarg", sweep_dms=[], sweep_posns=[]):
     """ I want a docstring too!
     """
 
@@ -188,10 +188,7 @@ def plot_waterfall(rawdatafile, data, bins, nbins, start, integrate_ts=False, \
         ax_spec = plt.axes((0.75, 0.15, 0.2, im_height),sharey=ax_im)
 
     # Ploting it up
-    ragfac = float(nbins)/bins
-    dmrange, trange = data.data.shape
-    nbinlim = np.int(trange * ragfac)
-    print data.dt, rawdatafile.tsamp 
+    nbinlim = np.int(options.duration/data.dt)
 
     ax_im.imshow(data.data[..., :nbinlim], aspect='auto', \
                 cmap=matplotlib.cm.cmap_d[cmap_str], \
@@ -282,7 +279,7 @@ def main():
                             width_bins=options.width_bins, maskfn=options.maskfile,
                             bandpass_corr=options.bandpass_corr)
 
-    plot_waterfall(rawdatafile, data, bins, nbins, start, integrate_ts=options.integrate_ts, \
+    plot_waterfall(rawdatafile, data, start, options.duration, integrate_ts=options.integrate_ts, \
                    integrate_spec=options.integrate_spec, show_cb=options.show_cb, 
                    cmap_str=options.cmap, sweep_dms=options.sweep_dms, 
                    sweep_posns=options.sweep_posns)
