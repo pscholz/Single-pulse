@@ -66,6 +66,9 @@ def waterfall(rawdatafile, start, duration, dm=None, nbins=None, nsub=None,\
     """ Write me a docstring!!!
     """
 
+    if subdm is None:
+        subdm = dm
+
     # Read data
     if ref_freq is None:
         ref_freq = rawdatafile.freqs.max()
@@ -82,11 +85,14 @@ def waterfall(rawdatafile, start, duration, dm=None, nbins=None, nsub=None,\
     if nbins is None:
         nbins = np.round(duration/rawdatafile.tsamp).astype('int')
 
-    binratio = 50 # what is this?   
     if dm:
 	nbinsextra = np.round((duration + dmfac * dm)/rawdatafile.tsamp).astype('int')
     else:
         nbinsextra = nbins    
+
+    # If at end of observation
+    if (start_bin + nbinsextra) > rawdatafile.specinfo.N-1:
+        nbinsextra = rawdatafile.specinfo.N-1-start_bin
 
     data = rawdatafile.get_spectra(start_bin, nbinsextra)
     if maskfn:
