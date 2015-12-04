@@ -60,46 +60,9 @@ def maskfile(maskfn, data, start_bin, nbinsextra):
     datacopy = copy.deepcopy(data)
     return data
 
-def waterfall(start_bin, dmfac, duration, nbins, zerodm, nsub, subdm, dm, \
-              downsamp, scaleindep, width_bins, rawdatafile, data, maskfn, bandpass_corr=False):
-    if dm:
-        nbinsextra = np.round((duration + dmfac * dm)/rawdatafile.tsamp).astype('int')
-    else:
-        nbinsextra = nbins
-
-    # Zerodm filtering
-    if (zerodm == True):
-        data.data -=  data.data.mean(axis=0)
-
-    # Bandpass correction
-    if (bandpass_corr == True):
-        bandpass = rfifind.rfifind(maskfn).median_bandpass_avg[::-1]
-        bandpass[bandpass == 0] = np.min(bandpass[np.nonzero(bandpass)])
-        data.data /= bandpass[:, None]
-    
-    # Subband data
-    if (nsub is not None) and (subdm is not None):
-        data.subband(nsub, subdm, padval='mean')
-
-    # Dedisperse
-    if dm:
-        data.dedisperse(dm, padval='mean')
-
-    # Downsample
-    data.downsample(downsamp)
-
-    # scale data
-    data = data.scaled(scaleindep)
-    
-    # Smooth
-    if width_bins > 1:
-        data.smooth(width_bins, padval='mean')
-
-    return data, nbinsextra
-
-def make_waterfalled_arrays(rawdatafile, start, duration, dm=None, nbins=None, nsub=None,\
-                            subdm=None, zerodm=False, downsamp=1, scaleindep=False,\
-                            width_bins=1, maskfn=None, bandpass_corr=False, ref_freq=None):
+def waterfall(rawdatafile, start, duration, dm=None, nbins=None, nsub=None,\
+              subdm=None, zerodm=False, downsamp=1, scaleindep=False,\
+              width_bins=1, maskfn=None, bandpass_corr=False, ref_freq=None):
     """ Write me a docstring!!!
     """
 
@@ -270,7 +233,7 @@ def main():
                          "extension. (Only '.fits' and '.fil' "
                          "are supported.)")
 
-    data, bins, nbins, start = make_waterfalled_arrays(rawdatafile, options.start, \
+    data, bins, nbins, start = waterfall(rawdatafile, options.start, \
                             options.duration, dm=options.dm,\
                             nbins=options.nbins, nsub=options.nsub,\
                             subdm=options.subdm, zerodm=options.zerodm, \
