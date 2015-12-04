@@ -7,6 +7,7 @@ Make waterfall plots to show frequency sweep of a single pulse.
 Reads SIGPROC filterbank format.
 
 Patrick Lazarus - Aug. 19, 2011
+Paul Scholz - Nov 2015
 
 """
 
@@ -98,11 +99,20 @@ def waterfall(start_bin, dmfac, duration, nbins, zerodm, nsub, subdm, dm, \
 
 def make_waterfalled_arrays(rawdatafile, start, duration, dm=None, nbins=None, nsub=None,\
                             subdm=None, zerodm=False, downsamp=1, scaleindep=False,\
-                            width_bins=1, maskfn=None, bandpass_corr=False):
+                            width_bins=1, maskfn=None, bandpass_corr=False, ref_freq=None):
     """ Write me a docstring!!!
     """
 
     # Read data
+    if ref_freq is None:
+        ref_freq = rawdatafile.freqs.max()
+
+    if nsub and dm:
+        nchan_per_sub = rawdatafile.nchan/nsub
+        top_ctrfreq = rawdatafile.freqs.max() - \
+                      0.5*nchan_per_sub*rawdatafile.specinfo.df # center of top subband
+        start += 4.15e3 * np.abs(1./ref_freq**2 - 1./top_ctrfreq**2) * dm
+
     start_bin = np.round(start/rawdatafile.tsamp).astype('int')
     dmfac = 4.15e3 * np.abs(1./rawdatafile.frequencies[0]**2 - 1./rawdatafile.frequencies[-1]**2)
 
@@ -118,11 +128,44 @@ def make_waterfalled_arrays(rawdatafile, start, duration, dm=None, nbins=None, n
     data = rawdatafile.get_spectra(start_bin, nbinsextra)
     if maskfn:
         data = maskfile(maskfn, data, start_bin, nbinsextra)
-    data, bins = waterfall(start_bin, dmfac, duration, nbins, zerodm, nsub, \
-                           subdm, dm, downsamp, scaleindep, width_bins, \
-                           rawdatafile, data, maskfn, bandpass_corr=bandpass_corr)
+    #data, bins = waterfall(start_bin, dmfac, duration, nbins, zerodm, nsub, \
+    #                       subdm, dm, downsamp, scaleindep, width_bins, \
+    #                       rawdatafile, data, maskfn, bandpass_corr=bandpass_corr)
 
-    return data, bins, nbins
+    if dm:
+        nbinsextra = np.round((duration + dmfac * dm)/rawdatafile.tsamp).astype('int')
+    else:
+        nbinsextra = nbins
+
+    # Zerodm filtering
+    if (zerodm == True):
+        data.data -=  data.data.mean(axis=0)
+
+    # Bandpass correction
+    if (bandpass_corr == True):
+        bandpass = rfifind.rfifind(maskfn).median_bandpass_avg[::-1]
+        bandpass[bandpass == 0] = np.min(bandpass[np.nonzero(bandpass)])
+        data.data /= bandpass[:, None]
+    
+    # Subband data
+    if (nsub is not None) and (subdm is not None):
+        data.subband(nsub, subdm, padval='mean')
+
+    # Dedisperse
+    if dm:
+        data.dedisperse(dm, padval='mean')
+
+    # Downsample
+    data.downsample(downsamp)
+
+    # scale data
+    data = data.scaled(scaleindep)
+    
+    # Smooth
+    if width_bins > 1:
+        data.smooth(width_bins, padval='mean')
+
+    return data, nbinsextra, nbins, start
 
 def plot_waterfall(rawdatafile, data, bins, nbins, start, integrate_ts=False, \
                    integrate_spec=False, show_cb=False, cmap_str="gist_yarg",
@@ -230,7 +273,7 @@ def main():
                          "extension. (Only '.fits' and '.fil' "
                          "are supported.)")
 
-    data, bins, nbins = make_waterfalled_arrays(rawdatafile, options.start, \
+    data, bins, nbins, start = make_waterfalled_arrays(rawdatafile, options.start, \
                             options.duration, dm=options.dm,\
                             nbins=options.nbins, nsub=options.nsub,\
                             subdm=options.subdm, zerodm=options.zerodm, \
@@ -239,7 +282,7 @@ def main():
                             width_bins=options.width_bins, maskfn=options.maskfile,
                             bandpass_corr=options.bandpass_corr)
 
-    plot_waterfall(rawdatafile, data, bins, nbins, options.start, integrate_ts=options.integrate_ts, \
+    plot_waterfall(rawdatafile, data, bins, nbins, start, integrate_ts=options.integrate_ts, \
                    integrate_spec=options.integrate_spec, show_cb=options.show_cb, 
                    cmap_str=options.cmap, sweep_dms=options.sweep_dms, 
                    sweep_posns=options.sweep_posns)
