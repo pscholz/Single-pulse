@@ -122,7 +122,7 @@ def waterfall_array(duration, nbins, zerodm, nsub, subdm, dm, downsamp, scaleind
        data: 2D array as an "object" 
        array: 2D array ready to be plotted by sp_pgplot.plot_waterfall(array). 
     """
-    data, bins, nbins, dummy3 = waterfaller.waterfall(rawdatafile, start, duration, dm=dm, nbins=nbins, nsub=nsub, subdm=subdm, zerodm=zerodm, downsamp=downsamp, scaleindep=scaleindep, width_bins=width_bins, maskfn=maskfn)
+    data, bins, nbins, new_start = waterfaller.waterfall(rawdatafile, start, duration, dm=dm, nbins=nbins, nsub=nsub, subdm=subdm, zerodm=zerodm, downsamp=downsamp, scaleindep=scaleindep, width_bins=width_bins, maskfn=maskfn)
     array = np.array(data.data)
     if dm is not None:            # If dedispersing the data, extra bins will be added. We need to cut off the extra bins to get back the appropriate window size.   
         ragfac = float(nbins)/bins
@@ -132,7 +132,7 @@ def waterfall_array(duration, nbins, zerodm, nsub, subdm, dm, downsamp, scaleind
         nbinlim = nbins
     array = array[..., :nbinlim]
     array = (array[::-1]).astype(np.float16)
-    return data, array
+    return data, array, new_start
 
 def main():
     parser = optparse.OptionParser(prog="sp_pipeline..py", \
@@ -248,21 +248,22 @@ def main():
                 temp_filename = basename+"_DM%.1f_%.1fs_rank_%i"%(subdm, topo_start_time, rank)
                 # Array for Plotting Dedispersed waterfall plot - zerodm - OFF
                 print_debug("Running waterfaller with Zero-DM OFF...")
-                data, Data_dedisp_nozerodm = waterfall_array(duration, nbins, zerodm, nsub, subdm, dm, downsamp, scaleindep, width_bins, rawdatafile, start, options.maskfile)
+                data, Data_dedisp_nozerodm, new_start = waterfall_array(duration, nbins, zerodm, nsub, subdm, dm, downsamp, scaleindep, width_bins, rawdatafile, start, options.maskfile)
                 # Add additional information to the header information array
-                text_array = np.array([args[0], 'Arecibo', RA, dec, MJD, rank, nsub, nbins, subdm, sigma, sample_number, duration, width_bins, pulse_width, rawdatafile.tsamp, Total_observed_time, topo_start_time, data.starttime, data.dt, data.numspectra, data.freqs.min(), data.freqs.max()])
+                new_topo_start = new_start + 0.25 * duration # b/c subbanding changes reference freq
+                text_array = np.array([args[0], 'Arecibo', RA, dec, MJD, rank, nsub, nbins, subdm, sigma, sample_number, duration, width_bins, pulse_width, rawdatafile.tsamp, Total_observed_time, new_topo_start, data.starttime, data.dt, data.numspectra, data.freqs.min(), data.freqs.max()])
 
                 #### Array for plotting Dedispersed waterfall plot zerodm - ON
                 print_debug("Running Waterfaller with Zero-DM ON...")
                 zerodm = True
-                data, Data_dedisp_zerodm = waterfall_array(duration, nbins, zerodm, nsub, subdm, dm, downsamp, scaleindep, width_bins, rawdatafile, start, options.maskfile)
+                data, Data_dedisp_zerodm, new_start = waterfall_array(duration, nbins, zerodm, nsub, subdm, dm, downsamp, scaleindep, width_bins, rawdatafile, start, options.maskfile)
                 ####Sweeped without zerodm
                 start = start + (0.25*duration)
                 sweep_duration = 4.15e3 * np.abs(1./rawdatafile.frequencies[0]**2-1./rawdatafile.frequencies[-1]**2)*sweep_dm
                 nbins = np.round(sweep_duration/(rawdatafile.tsamp)).astype('int')
                 zerodm = None
                 dm = None
-                data, Data_nozerodm = waterfall_array(duration, nbins, zerodm, nsub, subdm, dm, downsamp, scaleindep, width_bins, rawdatafile, start, options.maskfile)
+                data, Data_nozerodm, new_start = waterfall_array(duration, nbins, zerodm, nsub, subdm, dm, downsamp, scaleindep, width_bins, rawdatafile, start, options.maskfile)
                 text_array = np.append(text_array, sweep_duration)
                 text_array = np.append(text_array, data.starttime)
                 text_array = np.append(text_array, bary_start_time)
@@ -276,11 +277,21 @@ def main():
                 # Sweeped with zerodm-on 
                 zerodm = True
                 downsamp_temp = 1
-                data, Data_zerodm = waterfall_array(duration, nbins, zerodm, nsub, subdm, dm, downsamp_temp, scaleindep, width_bins, rawdatafile, start, options.maskfile)
+                data, Data_zerodm, new_start = waterfall_array(duration, nbins, zerodm, nsub, subdm, dm, downsamp_temp, scaleindep, width_bins, rawdatafile, start, options.maskfile)
 
                 # Saving the arrays into the .spd file.
                 with open(temp_filename+".spd", 'wb') as f:
-                    np.savez_compressed(f, Data_dedisp_nozerodm = Data_dedisp_nozerodm.astype(np.float16), Data_dedisp_zerodm = Data_dedisp_zerodm.astype(np.float16), Data_nozerodm = Data_nozerodm.astype(np.float16), delays_nozerodm = delays_nozerodm, freqs_nozerodm = freqs_nozerodm, Data_zerodm = Data_zerodm.astype(np.float16), dm_arr= map(np.float16, dm_arr), sigma_arr = map(np.float16, sigma_arr), dm_list= map(np.float16, dm_list), time_list = map(np.float16, time_list), text_array = text_array)
+                    np.savez_compressed(f, Data_dedisp_nozerodm = Data_dedisp_nozerodm.astype(np.float16), 
+                                           Data_dedisp_zerodm = Data_dedisp_zerodm.astype(np.float16), 
+                                           Data_nozerodm = Data_nozerodm.astype(np.float16), 
+                                           delays_nozerodm = delays_nozerodm, 
+                                           freqs_nozerodm = freqs_nozerodm,  
+                                           Data_zerodm = Data_zerodm.astype(np.float16), 
+                                           dm_arr= map(np.float16, dm_arr), 
+                                           sigma_arr = map(np.float16, sigma_arr), 
+                                           dm_list= map(np.float16, dm_list), 
+                                           time_list = map(np.float16, time_list), 
+                                           text_array = text_array)
                 print_debug("Now plotting...")
                 show_spplots.plot(temp_filename+".spd", args[1:], xwin=False, outfile = basename, tar = None)
                 print_debug("Finished plot %i " %j+strftime("%Y-%m-%d %H:%M:%S"))
