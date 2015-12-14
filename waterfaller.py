@@ -133,14 +133,6 @@ def waterfall(rawdatafile, start, duration, dm=None, nbins=None, nsub=None,\
     data = rawdatafile.get_spectra(start_bin, nbinsextra)
     if maskfn:
         data = maskfile(maskfn, data, start_bin, nbinsextra)
-    #data, bins = waterfall(start_bin, dmfac, duration, nbins, zerodm, nsub, \
-    #                       subdm, dm, downsamp, scaleindep, width_bins, \
-    #                       rawdatafile, data, maskfn, bandpass_corr=bandpass_corr)
-
-    if dm:
-        nbinsextra = np.round((duration + dmfac * dm)/rawdatafile.tsamp).astype('int')
-    else:
-        nbinsextra = nbins
 
     # Zerodm filtering
     if (zerodm == True):
