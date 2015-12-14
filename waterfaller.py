@@ -54,11 +54,12 @@ def get_mask(rfimask, startsamp, N):
 def maskfile(maskfn, data, start_bin, nbinsextra):
     rfimask = rfifind.rfifind(maskfn) 
     mask = get_mask(rfimask, start_bin, nbinsextra)
+    masked_chans = mask.all(axis=1)
     # Mask data
     data = data.masked(mask, maskval='median-mid80')
 
-    datacopy = copy.deepcopy(data)
-    return data
+    #datacopy = copy.deepcopy(data)
+    return data, masked_chans
 
 def waterfall(rawdatafile, start, duration, dm=None, nbins=None, nsub=None,\
               subdm=None, zerodm=False, downsamp=1, scaleindep=False,\
@@ -131,8 +132,19 @@ def waterfall(rawdatafile, start, duration, dm=None, nbins=None, nsub=None,\
         nbinsextra = rawdatafile.specinfo.N-1-start_bin
 
     data = rawdatafile.get_spectra(start_bin, nbinsextra)
+
+    # Masking
     if maskfn:
-        data = maskfile(maskfn, data, start_bin, nbinsextra)
+        data, masked_chans = maskfile(maskfn, data, start_bin, nbinsextra)
+
+        # ignore top and bottom 1% of band
+        ignore_chans = int(0.01*rawdatafile.nchan) 
+        masked_chans[:ignore_chans] = True
+        masked_chans[-ignore_chans:] = True
+
+        data_masked = np.ma.masked_array(data.data)
+        data_masked[masked_chans] = np.ma.masked
+        data.data = data_masked
 
     # Zerodm filtering
     if (zerodm == True):
