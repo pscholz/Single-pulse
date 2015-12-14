@@ -63,7 +63,43 @@ def maskfile(maskfn, data, start_bin, nbinsextra):
 def waterfall(rawdatafile, start, duration, dm=None, nbins=None, nsub=None,\
               subdm=None, zerodm=False, downsamp=1, scaleindep=False,\
               width_bins=1, maskfn=None, bandpass_corr=False, ref_freq=None):
-    """ Write me a docstring!!!
+    """
+    Create a waterfall plot (i.e. dynamic specrum) from a raw data file.
+    Inputs:
+       rawdatafile - a PsrfitsData instance.
+       start - start time of the data to be read in for waterfalling.
+       duration - duration of data to be waterfalled.
+    Optional Inputs:
+       dm - DM to use when dedispersing data.
+             Default: Don't de-disperse
+       nbins - Number of time bins to plot. This option overrides
+                the duration argument. 
+                Default: determine nbins from duration.
+       nsub - Number of subbands to use. Must be a factor of number of channels.
+               Default: Number of channels.
+       subdm - DM to use when subbanding. Default: same as dm argument.
+       zerodm - subtract mean of each time-sample from data before 
+                 de-dispersing.
+       downsamp - Factor to downsample in time by. Default: Don't downsample.
+       scaleindep - Scale each channel independently.
+                     Default: Scale using global maximum.
+       width_bins - Smooth each channel/subband with a boxcar width_bins wide.
+                     Default: Don't smooth.
+       maskfn - Filename of RFIFIND mask to use for masking data.
+                 Default: Don't mask data.
+       bandpass_corr - Correct for the bandpass. Requires an rfifind
+                        mask provided by maskfn keyword argument.
+                        Default: Do not remove bandpass.
+       ref_freq - Reference frequency to de-disperse to. 
+                   If subbanding and de-dispersing the start time 
+                   will be corrected to account for change in
+                   reference frequency. 
+                   Default: Frequency of top channel.
+    Outputs:
+       data - Spectra instance of waterfalled data cube.
+       nbinsextra - number of time bins read in from raw data. 
+       nbins - number of bins in duration.
+       start - corrected start time. 
     """
 
     if subdm is None:
