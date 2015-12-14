@@ -63,7 +63,8 @@ def maskfile(maskfn, data, start_bin, nbinsextra):
 
 def waterfall(rawdatafile, start, duration, dm=None, nbins=None, nsub=None,\
               subdm=None, zerodm=False, downsamp=1, scaleindep=False,\
-              width_bins=1, maskfn=None, bandpass_corr=False, ref_freq=None):
+              width_bins=1, mask=False, maskfn=None, bandpass_corr=False, \
+              ref_freq=None):
     """
     Create a waterfall plot (i.e. dynamic specrum) from a raw data file.
     Inputs:
@@ -134,24 +135,26 @@ def waterfall(rawdatafile, start, duration, dm=None, nbins=None, nsub=None,\
     data = rawdatafile.get_spectra(start_bin, nbinsextra)
 
     # Masking
-    if maskfn:
+    if mask and maskfn:
         data, masked_chans = maskfile(maskfn, data, start_bin, nbinsextra)
+    else:
+        masked_chans = np.zeros(rawdatafile.nchan,dtype=bool)
 
-        # ignore top and bottom 1% of band
-        ignore_chans = int(0.01*rawdatafile.nchan) 
-        masked_chans[:ignore_chans] = True
-        masked_chans[-ignore_chans:] = True
+    # ignore top and bottom 1% of band
+    ignore_chans = int(0.01*rawdatafile.nchan) 
+    masked_chans[:ignore_chans] = True
+    masked_chans[-ignore_chans:] = True
 
-        data_masked = np.ma.masked_array(data.data)
-        data_masked[masked_chans] = np.ma.masked
-        data.data = data_masked
+    data_masked = np.ma.masked_array(data.data)
+    data_masked[masked_chans] = np.ma.masked
+    data.data = data_masked
 
     # Zerodm filtering
     if (zerodm == True):
         data.data -=  data.data.mean(axis=0)
 
     # Bandpass correction
-    if (bandpass_corr == True):
+    if maskfn and bandpass_corr:
         bandpass = rfifind.rfifind(maskfn).median_bandpass_avg[::-1]
         bandpass[bandpass == 0] = np.min(bandpass[np.nonzero(bandpass)])
         data.data /= bandpass[:, None]
@@ -285,7 +288,8 @@ def main():
                             subdm=options.subdm, zerodm=options.zerodm, \
                             downsamp=options.downsamp, \
                             scaleindep=options.scaleindep, \
-                            width_bins=options.width_bins, maskfn=options.maskfile,
+                            width_bins=options.width_bins, mask=options.mask, \
+                            maskfn=options.maskfile, \
                             bandpass_corr=options.bandpass_corr)
 
     plot_waterfall(rawdatafile, data, start, options.duration, integrate_ts=options.integrate_ts, \
@@ -351,9 +355,13 @@ if __name__=='__main__':
     parser.add_option('--downsamp', dest='downsamp', type='int', \
                         help="Factor to downsample data by. (Default: 1).", \
                         default=1)
-    parser.add_option('--mask', dest='maskfile', type='string', \
-                        help="Mask file produced by rfifind. (Default: No Mask).", \
+    parser.add_option('--maskfile', dest='maskfile', type='string', \
+                        help="Mask file produced by rfifind. Used for " \
+                             "masking and bandpass correction.", \
                         default=None)
+    parser.add_option('--mask', dest='mask', action="store_true", \
+                        help="Mask data using rfifind mask (Default: Don't mask).", \
+                        default=False)
     parser.add_option('--scaleindep', dest='scaleindep', action='store_true', \
                         help="If this flag is set scale each channel " \
                                 "independently. (Default: Scale using " \

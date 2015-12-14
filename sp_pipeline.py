@@ -113,7 +113,7 @@ def maskdata(data, start_bin, nbinsextra, maskfile):
         data = data.masked(mask, maskval='median-mid80')
     return data
 
-def waterfall_array(duration, nbins, zerodm, nsub, subdm, dm, downsamp, scaleindep, width_bins, rawdatafile, start, maskfn, bandpass_corr):
+def waterfall_array(duration, nbins, zerodm, nsub, subdm, dm, downsamp, scaleindep, width_bins, rawdatafile, start, mask , maskfn, bandpass_corr):
     """
     Runs the waterfaller. If dedispersing, there will be extra bins added to the 2D plot.
     Inputs:
@@ -122,7 +122,10 @@ def waterfall_array(duration, nbins, zerodm, nsub, subdm, dm, downsamp, scaleind
        data: 2D array as an "object" 
        array: 2D array ready to be plotted by sp_pgplot.plot_waterfall(array). 
     """
-    data, bins, nbins, new_start = waterfaller.waterfall(rawdatafile, start, duration, dm=dm, nbins=nbins, nsub=nsub, subdm=subdm, zerodm=zerodm, downsamp=downsamp, scaleindep=scaleindep, width_bins=width_bins, maskfn=maskfn, bandpass_corr=bandpass_corr)
+    data, bins, nbins, new_start = waterfaller.waterfall(rawdatafile, start, \
+          duration, dm=dm, nbins=nbins, nsub=nsub, subdm=subdm, zerodm=zerodm, \
+          downsamp=downsamp, scaleindep=scaleindep, width_bins=width_bins, \
+          mask=mask, maskfn=maskfn, bandpass_corr=bandpass_corr)
     array = np.array(data.data)
     #if dm is not None:            # If dedispersing the data, extra bins will be added. We need to cut off the extra bins to get back the appropriate window size.   
     #    ragfac = float(nbins)/bins
@@ -150,13 +153,17 @@ def main():
                         help="Give a .inf file to read the appropriate header information.")
     parser.add_option('--groupsfile', dest='txtfile', type='string', \
                         help="Give the groups.txt file to read in the groups information.") 
-    parser.add_option('--mask', dest='maskfile', type='string', \
-                        help="Mask file produced by rfifind. (Default: No Mask).", \
+    parser.add_option('--maskfile', dest='maskfile', type='string', \
+                        help="Mask file produced by rfifind. Used for " \
+                             "masking and bandpass correction.", \
                         default=None)
+    parser.add_option('--mask', dest='mask', action="store_true", \
+                        help="Mask data using rfifind mask (Default: Don't mask).", \
+                        default=False)
     parser.add_option('--bandpass', dest='bandpass', action="store_true", \
                         help="Correct for the bandpass. Requires an rfifind" \
                         "mask provided by --mask. (Default: Do not remove bandpass).",
-                        default=None)
+                        default=False)
     parser.add_option('-n', dest='maxnumcands', type='int', \
                         help="Maximum number of candidates to plot. (Default: 100).", \
                         default=100)
@@ -256,7 +263,7 @@ def main():
                 temp_filename = basename+"_DM%.1f_%.1fs_rank_%i"%(subdm, topo_start_time, rank)
                 # Array for Plotting Dedispersed waterfall plot - zerodm - OFF
                 print_debug("Running waterfaller with Zero-DM OFF...")
-                data, Data_dedisp_nozerodm, new_start = waterfall_array(duration, nbins, zerodm, nsub, subdm, dm, downsamp, scaleindep, width_bins, rawdatafile, start, options.maskfile, options.bandpass)
+                data, Data_dedisp_nozerodm, new_start = waterfall_array(duration, nbins, zerodm, nsub, subdm, dm, downsamp, scaleindep, width_bins, rawdatafile, start, options.mask, options.maskfile, options.bandpass)
                 # Add additional information to the header information array
                 new_topo_start = new_start + 0.25 * duration # b/c subbanding changes reference freq
                 text_array = np.array([args[0], 'Arecibo', RA, dec, MJD, rank, nsub, nbins, subdm, sigma, sample_number, duration, width_bins, pulse_width, rawdatafile.tsamp, Total_observed_time, new_topo_start, data.starttime, data.dt, data.numspectra, data.freqs.min(), data.freqs.max()])
@@ -264,14 +271,14 @@ def main():
                 #### Array for plotting Dedispersed waterfall plot zerodm - ON
                 print_debug("Running Waterfaller with Zero-DM ON...")
                 zerodm = True
-                data, Data_dedisp_zerodm, new_start = waterfall_array(duration, nbins, zerodm, nsub, subdm, dm, downsamp, scaleindep, width_bins, rawdatafile, start, options.maskfile, options.bandpass)
+                data, Data_dedisp_zerodm, new_start = waterfall_array(duration, nbins, zerodm, nsub, subdm, dm, downsamp, scaleindep, width_bins, rawdatafile, start, options.mask, options.maskfile, options.bandpass)
                 ####Sweeped without zerodm
                 start = start + (0.25*duration)
                 sweep_duration = 4.15e3 * np.abs(1./rawdatafile.frequencies[0]**2-1./rawdatafile.frequencies[-1]**2)*sweep_dm
                 nbins = np.round(sweep_duration/(rawdatafile.tsamp)).astype('int')
                 zerodm = None
                 dm = None
-                data, Data_nozerodm, new_start = waterfall_array(duration, nbins, zerodm, nsub, subdm, dm, downsamp, scaleindep, width_bins, rawdatafile, start, options.maskfile, options.bandpass)
+                data, Data_nozerodm, new_start = waterfall_array(duration, nbins, zerodm, nsub, subdm, dm, downsamp, scaleindep, width_bins, rawdatafile, start, options.mask, options.maskfile, options.bandpass)
                 text_array = np.append(text_array, sweep_duration)
                 text_array = np.append(text_array, data.starttime)
                 text_array = np.append(text_array, bary_start_time)
@@ -285,7 +292,7 @@ def main():
                 # Sweeped with zerodm-on 
                 zerodm = True
                 downsamp_temp = 1
-                data, Data_zerodm, new_start = waterfall_array(duration, nbins, zerodm, nsub, subdm, dm, downsamp_temp, scaleindep, width_bins, rawdatafile, start, options.maskfile, options.bandpass)
+                data, Data_zerodm, new_start = waterfall_array(duration, nbins, zerodm, nsub, subdm, dm, downsamp_temp, scaleindep, width_bins, rawdatafile, start, options.mask, options.maskfile, options.bandpass)
 
                 # Saving the arrays into the .spd file.
                 with open(temp_filename+".spd", 'wb') as f:
