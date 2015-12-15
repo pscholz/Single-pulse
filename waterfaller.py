@@ -140,24 +140,29 @@ def waterfall(rawdatafile, start, duration, dm=None, nbins=None, nsub=None,\
     else:
         masked_chans = np.zeros(rawdatafile.nchan,dtype=bool)
 
-    # ignore top and bottom 1% of band
-    ignore_chans = int(0.01*rawdatafile.nchan) 
-    masked_chans[:ignore_chans] = True
-    masked_chans[-ignore_chans:] = True
+    # Bandpass correction
+    if maskfn and bandpass_corr:
+        bandpass = rfifind.rfifind(maskfn).bandpass_avg[::-1]
+        #bandpass[bandpass == 0] = np.min(bandpass[np.nonzero(bandpass)])
+        masked_chans[bandpass == 0] = True
+
+        # ignore top and bottom 1% of band
+        ignore_chans = np.ceil(0.01*rawdatafile.nchan) 
+        masked_chans[:ignore_chans] = True
+        masked_chans[-ignore_chans:] = True
+
 
     data_masked = np.ma.masked_array(data.data)
     data_masked[masked_chans] = np.ma.masked
     data.data = data_masked
 
+    if bandpass_corr:
+       data.data /= bandpass[:, None]
+
     # Zerodm filtering
     if (zerodm == True):
         data.data -=  data.data.mean(axis=0)
 
-    # Bandpass correction
-    if maskfn and bandpass_corr:
-        bandpass = rfifind.rfifind(maskfn).median_bandpass_avg[::-1]
-        bandpass[bandpass == 0] = np.min(bandpass[np.nonzero(bandpass)])
-        data.data /= bandpass[:, None]
     
     # Subband data
     if (nsub is not None) and (subdm is not None):
