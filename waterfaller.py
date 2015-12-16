@@ -186,26 +186,29 @@ def waterfall(rawdatafile, start, duration, dm=None, nbins=None, nsub=None,\
 
 def plot_waterfall(rawdatafile, data, start, duration, 
                    integrate_ts=False, integrate_spec=False, show_cb=False, 
-                   cmap_str="gist_yarg", sweep_dms=[], sweep_posns=[]):
+                   cmap_str="gist_yarg", sweep_dms=[], sweep_posns=[],
+                   ax_im=None, ax_ts=None, ax_spec=None, interactive=True):
     """ I want a docstring too!
     """
 
     # Set up axes
-    fig = plt.figure()
-    fig.canvas.set_window_title("Frequency vs. Time")
+    if interactive:
+        fig = plt.figure()
+        fig.canvas.set_window_title("Frequency vs. Time")
 
     im_width = 0.6 if integrate_spec else 0.8
     im_height = 0.6 if integrate_ts else 0.8
 
-    ax_im = plt.axes((0.15, 0.15, im_width, im_height))
-    if integrate_ts:
+    if not ax_im:
+        ax_im = plt.axes((0.15, 0.15, im_width, im_height))
+    if integrate_ts and not ax_ts:
         ax_ts = plt.axes((0.15, 0.75, im_width, 0.2),sharex=ax_im)
 
-    if integrate_spec:
+    if integrate_spec and not ax_spec:
         ax_spec = plt.axes((0.75, 0.15, 0.2, im_height),sharey=ax_im)
 
     # Ploting it up
-    nbinlim = np.int(options.duration/data.dt)
+    nbinlim = np.int(duration/data.dt)
 
     ax_im.imshow(data.data[..., :nbinlim], aspect='auto', \
                 cmap=matplotlib.cm.cmap_d[cmap_str], \
@@ -237,7 +240,6 @@ def plot_waterfall(rawdatafile, data, start, duration,
     ax_im.xaxis.get_major_formatter().set_useOffset(False)
     ax_im.set_xlabel("Time")
     ax_im.set_ylabel("Observing frequency (MHz)")
-    plt.suptitle("Frequency vs. Time")
 
     # Plot Time series
     if integrate_ts:
@@ -266,10 +268,12 @@ def plot_waterfall(rawdatafile, data, start, duration,
             ax_ts.axvline(times[burst_bin]-spectrum_window,ls="--",c="grey")                  
             ax_ts.axvline(times[burst_bin]+spectrum_window,ls="--",c="grey")                  
 
-    fig.canvas.mpl_connect('key_press_event', \
-            lambda ev: (ev.key in ('q','Q') and plt.close(fig)))
+    if interactive:
+        fig.suptitle("Frequency vs. Time")
+        fig.canvas.mpl_connect('key_press_event', \
+                lambda ev: (ev.key in ('q','Q') and plt.close(fig)))
 
-    plt.show()
+        plt.show()
 
 def main():
     fn = args[0]
