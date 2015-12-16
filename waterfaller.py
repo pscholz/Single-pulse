@@ -184,7 +184,7 @@ def waterfall(rawdatafile, start, duration, dm=None, nbins=None, nsub=None,\
 
     return data, nbinsextra, nbins, start
 
-def plot_waterfall(rawdatafile, data, start, duration, 
+def plot_waterfall(data, start, duration, 
                    integrate_ts=False, integrate_spec=False, show_cb=False, 
                    cmap_str="gist_yarg", sweep_dms=[], sweep_posns=[],
                    ax_im=None, ax_ts=None, ax_spec=None, interactive=True):
@@ -254,7 +254,7 @@ def plot_waterfall(rawdatafile, data, start, duration,
     # Plot Spectrum                                                             
     if integrate_spec:                                                         
         window_width = 50 # bins
-        spectrum_window = window_width*rawdatafile.tsamp
+        spectrum_window = window_width*data.dt
         burst_bin = nbinlim/2
         on_spec = np.array(data.data[..., burst_bin-window_width:burst_bin+window_width])
         Dedisp_spec = on_spec.sum(axis=1)[::-1]                                 
@@ -301,7 +301,7 @@ def main():
                             maskfn=options.maskfile, \
                             bandpass_corr=options.bandpass_corr)
 
-    plot_waterfall(rawdatafile, data, start, options.duration, integrate_ts=options.integrate_ts, \
+    plot_waterfall(data, start, options.duration, integrate_ts=options.integrate_ts, \
                    integrate_spec=options.integrate_spec, show_cb=options.show_cb, 
                    cmap_str=options.cmap, sweep_dms=options.sweep_dms, 
                    sweep_posns=options.sweep_posns)
