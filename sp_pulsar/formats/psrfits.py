@@ -18,9 +18,10 @@ import argparse
 
 import pyslalib.slalib as slalib
 import astropy.io.fits as pyfits
+from astropy import coordinates, units
 import numpy as np
 import psr_utils
-import astro_utils.protractor as protractor
+#import astro_utils.protractor as protractor
 from sp_pulsar.formats import spectra
 
 # Regular expression for parsing DATE-OBS card's format.
@@ -413,8 +414,8 @@ class SpectraInfo:
 
         # Finished looping through PSRFITS files. Finalise a few things.
         # Convert the position strings into degrees        
-        self.ra2000 = protractor.convert(self.ra_str, 'hmsstr', 'deg')
-        self.dec2000 = protractor.convert(self.dec_str, 'dmsstr', 'deg')
+        self.ra2000 = coordinates.Angle(self.ra_str,unit=units.hourangle).deg
+        self.dec2000 = coordinates.Angle(self.dec_str,unit=units.deg).deg
         
         # Are the polarisations summed?
         if (self.poln_order=="AA+BB") or (self.poln_order=="INTEN"):
